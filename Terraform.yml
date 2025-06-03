@@ -1,0 +1,40 @@
+# .github/workflows/terraform.yml
+name: "Terraform CI (GitHub Actions)"
+
+on:
+  workflow_dispatch:    # Permet de lancer manuellement depuis l’UI GitHub
+  push:
+    branches:
+      - main           # S’exécute automatiquement sur la branche main
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    env:
+      # Ces trois secrets doivent être configurés dans Settings → Secrets du dépôt
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+      ARM_ACCESS_TOKEN:    ${{ secrets.AZURE_ACCESS_TOKEN }}
+
+      # Le mot de passe admin de la VM (sensible) est injecté dans TF_VAR_admin_password
+      TF_VAR_vm_admin_password: ${{ secrets.VM_ADMIN_PASSWORD }}
+
+    steps:
+      - name: "Checkout du code"
+        uses: actions/checkout@v3
+
+      - name: "Setup Terraform"
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "1.5.7"
+
+      - name: "Terraform Init"
+        run: terraform init
+
+      - name: "Terraform Plan"
+        run: terraform plan -out=plan.tfplan
+
+      - name: "Terraform Apply"
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve plan.tfplan
